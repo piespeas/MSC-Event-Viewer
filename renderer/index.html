@@ -1,0 +1,766 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MSC Event Viewer</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <style>
+      body {
+        margin: 0;
+        font-family: "Plus Jakarta Sans", sans-serif;
+        background: transparent;
+        overflow: hidden;
+      }
+
+      .window {
+        width: 100%;
+        height: 100vh;
+        border-radius: 16px;
+        overflow: hidden;
+        background: #02040a;
+        position: relative;
+        border: 1px solid rgba(255, 255, 255, 0.07);
+        box-shadow: cubic-bezier(0.16, 1, 0.3, 1) 0px 20px 50px
+          rgba(0, 0, 0, 0.5);
+      }
+
+      .drag {
+        -webkit-app-region: drag;
+      }
+
+      .no-drag {
+        -webkit-app-region: no-drag;
+      }
+
+      .grid-bg {
+        background-image:
+          linear-gradient(
+            to bottom,
+            rgba(255, 255, 255, 0.015) 1px,
+            transparent 1px
+          ),
+          linear-gradient(
+            to right,
+            rgba(255, 255, 255, 0.015) 1px,
+            transparent 1px
+          );
+        background-size: 32px 32px;
+      }
+
+      .ambient-glow {
+        position: absolute;
+        width: 600px;
+        height: 600px;
+        background: radial-gradient(
+          circle,
+          rgba(255, 255, 255, 0.03) 0%,
+          transparent 75%
+        );
+        border-radius: 50%;
+        filter: blur(90px);
+        z-index: 0;
+        pointer-events: none;
+      }
+
+      .scanline {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          to bottom,
+          transparent 50%,
+          rgba(0, 0, 0, 0.15) 50%
+        );
+        background-size: 100% 4px;
+        opacity: 0.08;
+        pointer-events: none;
+      }
+
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 5px;
+        height: 5px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 99px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.2);
+      }
+
+      /* Native Date Input Custom Dark styling overrides */
+      input[type="date"]::-webkit-calendar-picker-indicator {
+        filter: invert(1) brightness(0.6);
+        cursor: pointer;
+      }
+      input[type="date"]::-webkit-calendar-picker-indicator:hover {
+        filter: invert(1) brightness(0.9);
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="window grid-bg flex flex-col text-white select-none">
+      <div
+        class="w-full h-14 border-b border-white/5 flex items-center justify-between px-4 md:px-6 drag relative z-50 bg-[#060910]/90 backdrop-blur-md shrink-0"
+      >
+        <div class="flex items-center gap-2.5 w-1/4">
+          <div
+            class="w-5 h-5 rounded-md bg-white/5 border border-white/10 flex items-center justify-center"
+          >
+            <i class="fa-solid fa-list-ul text-white/70 text-[10px]"></i>
+          </div>
+          <span
+            class="text-xs md:text-sm font-semibold tracking-wide text-white/90 truncate"
+            >MSC Event Viewer</span
+          >
+        </div>
+
+        <div
+          class="hidden sm:flex items-center justify-center text-center w-2/4"
+        >
+          <p
+            class="text-[10px] text-white/30 tracking-widest font-medium uppercase"
+          >
+            © 2026 All rights reserved. Minecraft Screenshare Community.
+          </p>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 w-1/4 no-drag">
+          <button
+            onclick="window.close()"
+            class="w-7 h-7 flex items-center justify-center rounded-lg bg-white/0 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 text-white/40 hover:text-rose-400 transition-all duration-200"
+          >
+            <i class="fa-solid fa-xmark text-xs"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="ambient-glow" style="top: -15%; left: 10%"></div>
+      <div class="ambient-glow" style="bottom: -10%; right: 10%"></div>
+      <div class="scanline"></div>
+
+      <div
+        class="flex-1 flex flex-col md:flex-row overflow-hidden relative z-10 no-drag"
+      >
+        <div
+          class="w-full md:w-64 border-b md:border-b-0 md:border-r border-white/5 bg-[#04060b]/60 backdrop-blur-sm flex flex-row md:flex-col justify-between p-3 md:p-4 gap-3 shrink-0"
+        >
+          <div
+            class="flex-1 md:space-y-3.5 overflow-x-auto md:overflow-x-visible md:overflow-y-auto custom-scrollbar flex flex-row md:flex-col items-center md:items-stretch gap-2 md:gap-0"
+          >
+            <div class="px-2 hidden md:block">
+              <span
+                class="text-[9px] font-bold uppercase text-white/30 tracking-[0.15em]"
+                >Channels</span
+              >
+            </div>
+            <nav
+              class="flex flex-row md:flex-col gap-1 w-full"
+              id="channel-menu"
+            ></nav>
+          </div>
+
+          <div class="shrink-0 flex items-center justify-center md:w-full">
+            <a
+              href="https://discord.gg/bDF8nsVShp"
+              target="_blank"
+              class="px-3.5 md:w-full h-9 flex items-center justify-center gap-2 rounded-xl bg-indigo-500/5 hover:bg-indigo-500/10 border border-indigo-500/15 hover:border-indigo-500/30 text-indigo-300 hover:text-indigo-200 text-xs font-semibold tracking-wide transition-all duration-200 shadow-sm shadow-indigo-500/5 whitespace-nowrap"
+            >
+              <i class="fa-brands fa-discord text-sm"></i>
+              <span class="hidden md:inline">Join Discord</span>
+            </a>
+          </div>
+        </div>
+
+        <div class="flex-1 flex flex-col bg-[#010205]/30 relative">
+          <div
+            id="dynamic-controls-header"
+            class="p-4 border-b border-white/5 flex flex-wrap items-center justify-between gap-4 bg-[#04060b]/30 shrink-0"
+          >
+            <div class="flex flex-1 items-center gap-3 min-w-[280px]">
+              <div class="relative flex-1 max-w-xs">
+                <i
+                  class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-white/20 text-xs"
+                ></i>
+                <input
+                  type="text"
+                  id="search-box"
+                  placeholder="Search logs..."
+                  class="w-full bg-[#080c14] border border-white/5 rounded-xl pl-10 pr-4 py-2 text-xs focus:outline-none focus:border-white/15 focus:bg-[#0c121e] transition-all duration-200 placeholder-white/20 text-white/90"
+                />
+              </div>
+
+              <div id="log-time-filters" class="flex items-center gap-2">
+                <button
+                  id="sort-toggle-btn"
+                  onclick="toggleSortDirection()"
+                  class="h-8 px-3 flex items-center gap-2 bg-[#080c14] border border-white/5 hover:border-white/15 rounded-xl text-xs text-white/70 hover:text-white transition-all duration-200"
+                  title="Toggle Sort Order"
+                >
+                  <i
+                    id="sort-direction-icon"
+                    class="fa-solid fa-sort-amount-down text-[11px]"
+                  ></i>
+                  <span
+                    id="sort-direction-label"
+                    class="text-[11px] font-medium"
+                    >Latest</span
+                  >
+                </button>
+
+                <div
+                  class="relative flex items-center bg-[#080c14] border border-white/5 rounded-xl px-2 h-8"
+                >
+                  <span
+                    class="text-[10px] text-white/30 font-medium mr-1.5 uppercase tracking-wider"
+                    >Before:</span
+                  >
+                  <input
+                    type="date"
+                    id="date-before-filter"
+                    onchange="applyActiveFilterDisplay()"
+                    class="bg-transparent border-none text-[11px] font-medium text-white/80 focus:outline-none p-0 cursor-pointer w-[105px]"
+                  />
+                  <button
+                    id="clear-date-btn"
+                    onclick="resetDateFilter()"
+                    class="ml-1.5 text-white/20 hover:text-rose-400 hidden transition-colors duration-150"
+                  >
+                    <i class="fa-solid fa-circle-xmark text-[10px]"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div
+              id="stream-actions-group"
+              class="flex items-center gap-2 shrink-0"
+            >
+              <button
+                onclick="clearFeeds()"
+                class="flex items-center gap-1.5 px-3 h-8 rounded-xl bg-white/0 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 text-white/50 hover:text-rose-400 text-xs font-medium transition-all duration-200 whitespace-nowrap"
+              >
+                <i class="fa-solid fa-trash-can text-[10px]"></i>
+                <span class="hidden sm:inline">Clear Logs</span>
+              </button>
+            </div>
+
+            <div
+              id="id-info-actions-group"
+              class="hidden items-center gap-2.5 shrink-0 text-right"
+            >
+              <div>
+                <h2 class="text-xs font-semibold text-white/90 tracking-wide">
+                  ID Lookups
+                </h2>
+                <p class="text-[10px] text-white/40 font-medium">
+                  "Dictionary" for every ID.
+                </p>
+              </div>
+              <div
+                class="w-7 h-7 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-lg flex items-center justify-center"
+              >
+                <i class="fa-solid fa-book-bookmark text-[11px]"></i>
+              </div>
+            </div>
+          </div>
+
+          <div
+            id="loading-overlay"
+            class="absolute inset-0 bg-[#02040a]/80 backdrop-blur-sm z-40 flex flex-col items-center justify-center gap-3 transition-opacity duration-200 opacity-0 pointer-events-none"
+          >
+            <i
+              class="fa-solid fa-circle-notch text-xl text-white/40 animate-spin"
+            ></i>
+            <p class="text-xs text-white/40 font-medium tracking-wide">
+              Loading logs...
+            </p>
+          </div>
+
+          <div
+            class="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar flex flex-col"
+            id="log-grid-stream"
+          ></div>
+
+          <div
+            class="flex-1 overflow-y-auto p-4 hidden custom-scrollbar"
+            id="id-info-grid-view"
+          >
+            <div
+              class="grid grid-cols-1 xl:grid-cols-2 gap-3"
+              id="id-cards-container"
+            ></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- MAIN SCRIPT LOGIC -->
+    <!-- ========================================================= -->
+
+    <script>
+      const LOG_THEMES = {
+        Security: {
+          color: "red",
+          icon: "fa-shield-halved",
+          label: "Security Log",
+        },
+        System: { color: "blue", icon: "fa-server", label: "System Log" },
+        PowerShell: {
+          color: "cyan",
+          icon: "fa-terminal",
+          label: "PowerShell Log",
+        },
+        "Task Scheduler": {
+          color: "emerald",
+          icon: "fa-clock",
+          label: "Scheduler Log",
+        },
+        "Windows Defender": {
+          color: "rose",
+          icon: "fa-bug-slash",
+          label: "Defender Log",
+        },
+        NTFS: {
+          color: "amber",
+          icon: "fa-hard-drive",
+          label: "Filesystem Log",
+        },
+        WMI: { color: "indigo", icon: "fa-circle-nodes", label: "WMI Log" },
+        Sysmon: { color: "purple", icon: "fa-eye", label: "Sysmon Log" },
+        Firewall: {
+          color: "orange",
+          icon: "fa-biohazard",
+          label: "Firewall Log",
+        },
+      };
+
+      let activeLiveDataset = [];
+      let initialIdDatabase = [];
+      let selectedActiveChannel = "all";
+      let sortLatestToOldest = true;
+
+      function createLogCardMarkup(
+        id,
+        msg,
+        exactPath,
+        type,
+        timestamp = "N/A",
+      ) {
+        const theme = LOG_THEMES[type] || { color: "blue", icon: "fa-server" };
+        const sanitizedPathForJs = exactPath.replace(/\\/g, "\\\\");
+
+        return `
+    <div class="log-element flex items-start gap-3.5 p-3 rounded-xl bg-[#080c14]/80 border border-white/[0.03] hover:border-white/10 hover:bg-[#0c1220]/90 transition-all duration-200 group/card" data-logchannel="${type}" data-timestamp="${timestamp}">
+      <div class="w-8 h-8 bg-${theme.color}-500/10 border border-${theme.color}-500/20 text-${theme.color}-400 rounded-lg flex items-center justify-center shrink-0 shadow-sm shadow-${theme.color}-500/5">
+        <i class="fa-solid ${theme.icon} text-xs"></i>
+      </div>
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center justify-between gap-2">
+          <div class="flex items-center gap-2 truncate">
+            <span class="text-[9px] font-bold font-mono px-1.5 py-0.5 bg-${theme.color}-500/10 border border-${theme.color}-500/20 text-${theme.color}-400 rounded tracking-wide shrink-0">ID ${id}</span>
+            <h3 class="text-xs font-semibold text-white/90 truncate tracking-wide">${msg}</h3>
+          </div>
+          <span class="text-[10px] font-mono text-white/40 shrink-0 font-medium">${timestamp}</span>
+        </div>
+        <div onclick="copyTextPath(this, '${sanitizedPathForJs}')" class="mt-2 text-[10px] font-mono flex items-center justify-between bg-[#03050a]/60 hover:bg-[#010205] px-2.5 py-1.5 rounded-lg border border-white/[0.02] hover:border-white/5 w-full cursor-pointer group/path transition-all duration-150">
+          <span class="truncate text-white/40 group-hover/path:text-white/70 transition-colors duration-150">Path: ${exactPath}</span>
+          <i class="fa-regular fa-copy text-white/20 group-hover/path:text-white/50 text-[10px] ml-2 shrink-0 transition-colors duration-150"></i>
+        </div>
+      </div>
+    </div>`;
+      }
+
+      function buildCatalogCardMarkup(info) {
+        const theme = LOG_THEMES[info.type] || {
+          color: "blue",
+          icon: "fa-server",
+        };
+        return `
+    <div class="id-info-card flex flex-col p-4 rounded-xl bg-[#080c14]/70 border border-white/[0.03] hover:border-white/10 hover:bg-[#0c1220]/70 transition-all duration-200" data-id="${info.id}" data-title="${info.title.toLowerCase()}" data-desc="${info.desc.toLowerCase()}" data-type="${info.type.toLowerCase()}">
+      <div class="flex items-center justify-between pb-3 border-b border-white/5 mb-3">
+        <div class="flex items-center gap-2.5">
+          <div class="w-7 h-7 bg-${theme.color}-500/10 border border-${theme.color}-500/20 text-${theme.color}-400 rounded-lg flex items-center justify-center">
+            <i class="fa-solid ${theme.icon} text-[10px]"></i>
+          </div>
+          <h4 class="text-xs font-semibold text-white/90 tracking-wide">${info.title}</h4>
+        </div>
+        <span class="text-[10px] font-bold font-mono px-2 py-0.5 bg-white/5 border border-white/10 text-white/80 rounded shadow-sm">ID ${info.id}</span>
+      </div>
+      <p class="text-[11px] text-white/50 leading-relaxed font-normal">${info.desc}</p>
+    </div>`;
+      }
+
+      function initializeMenuComponents() {
+        const menuNav = document.getElementById("channel-menu");
+        if (!menuNav) return;
+
+        let menuHTML = `
+    <button onclick="switchCategory('all')" id="btn-chan-all" class="w-full h-9 flex items-center justify-between px-3 rounded-xl bg-white/5 border border-white/10 text-white transition-all duration-150 text-xs font-semibold text-left whitespace-nowrap gap-4">
+      <span class="flex items-center gap-2.5"><i class="fa-solid fa-layer-group text-white/60 text-xs"></i>All Logs</span>
+      <span class="text-[9px] bg-white/10 px-1.5 py-0.5 rounded-md text-white/70 font-bold font-mono" id="all-count">0</span>
+    </button>`;
+
+        Object.keys(LOG_THEMES).forEach((key) => {
+          menuHTML += `
+      <button onclick="switchCategory('${key}')" id="btn-chan-${key}" class="w-full h-9 flex items-center justify-between px-3 rounded-xl hover:bg-white/[0.03] border border-transparent hover:border-white/5 text-white/50 hover:text-white/90 transition-all duration-150 text-xs font-medium text-left whitespace-nowrap pr-4">
+        <span class="flex items-center gap-2.5"><i class="fa-solid ${LOG_THEMES[key].icon} text-${LOG_THEMES[key].color}-400/80 text-xs w-4 text-center"></i>${LOG_THEMES[key].label}</span>
+      </button>`;
+        });
+
+        menuHTML += `
+    <div class="h-[1px] bg-white/5 my-2"></div>
+    <button onclick="switchCategory('id-information')" id="btn-chan-id-information" class="w-full h-9 flex items-center justify-between px-3 rounded-xl hover:bg-amber-500/5 border border-transparent hover:border-amber-500/10 text-amber-400/70 hover:text-amber-300 transition-all duration-150 text-xs font-medium text-left whitespace-nowrap pr-4">
+      <span class="flex items-center gap-2.5"><i class="fa-solid fa-book-bookmark text-amber-400/80 text-xs w-4 text-center"></i>ID Information</span>
+    </button>`;
+
+        menuNav.innerHTML = menuHTML;
+      }
+
+      function renderIdInformationView(infoArray) {
+        const lookupContainer = document.getElementById("id-cards-container");
+        if (!lookupContainer) return;
+
+        lookupContainer.innerHTML = infoArray
+          .map((info) => buildCatalogCardMarkup(info))
+          .join("");
+      }
+
+      async function executeRefreshCycle(channelKey) {
+        if (channelKey === "id-information") return;
+        if (!window.api || !window.api.refreshChannel) return;
+
+        if (channelKey === "all") {
+          activeLiveDataset = [];
+        }
+
+        await window.api.refreshChannel(channelKey);
+      }
+
+      function handleSearchInput() {
+        if (selectedActiveChannel === "id-information") {
+          applyIdCatalogFilter();
+          return;
+        }
+        applyActiveFilterDisplay();
+      }
+
+      function toggleSortDirection() {
+        sortLatestToOldest = !sortLatestToOldest;
+
+        const sortIcon = document.getElementById("sort-direction-icon");
+        const sortLabel = document.getElementById("sort-direction-label");
+
+        if (sortLatestToOldest) {
+          sortIcon.className = "fa-solid fa-sort-amount-down text-[11px]";
+          sortLabel.innerText = "Latest";
+        } else {
+          sortIcon.className = "fa-solid fa-sort-amount-up text-[11px]";
+          sortLabel.innerText = "Oldest";
+        }
+
+        applyActiveFilterDisplay();
+      }
+
+      function resetDateFilter() {
+        const dateInput = document.getElementById("date-before-filter");
+        if (dateInput) {
+          dateInput.value = "";
+          applyActiveFilterDisplay();
+        }
+      }
+
+      function applyActiveFilterDisplay() {
+        if (selectedActiveChannel === "id-information") return;
+
+        const searchBox = document.getElementById("search-box");
+        const query = searchBox ? searchBox.value.toLowerCase() : "";
+
+        const dateInput = document.getElementById("date-before-filter");
+        const clearDateBtn = document.getElementById("clear-date-btn");
+        let beforeDateThreshold = null;
+
+        if (dateInput && dateInput.value) {
+          beforeDateThreshold = new Date(dateInput.value);
+          if (clearDateBtn) clearDateBtn.classList.remove("hidden");
+        } else {
+          if (clearDateBtn) clearDateBtn.classList.add("hidden");
+        }
+
+        const logGridContainer = document.getElementById("log-grid-stream");
+        const logs = Array.from(document.querySelectorAll(".log-element"));
+        let visibleCount = 0;
+
+        logs.forEach((log) => {
+          const channelMatch =
+            selectedActiveChannel === "all" ||
+            log.getAttribute("data-logchannel") === selectedActiveChannel;
+          const searchMatch = log.innerText.toLowerCase().includes(query);
+
+          let dateMatch = true;
+          if (beforeDateThreshold) {
+            const rawTimeStr = log.getAttribute("data-timestamp");
+            if (rawTimeStr && rawTimeStr !== "N/A") {
+              const logDate = new Date(rawTimeStr);
+              if (!isNaN(logDate.getTime())) {
+                dateMatch = logDate < beforeDateThreshold;
+              }
+            }
+          }
+
+          const visible = channelMatch && searchMatch && dateMatch;
+
+          log.style.setProperty(
+            "display",
+            visible ? "flex" : "none",
+            "important",
+          );
+          if (visible) visibleCount++;
+        });
+
+        if (logGridContainer && logs.length > 0) {
+          const sortedLogs = logs.sort((a, b) => {
+            const timeAStr = a.getAttribute("data-timestamp");
+            const timeBStr = b.getAttribute("data-timestamp");
+            const dateA =
+              timeAStr && timeAStr !== "N/A" ? new Date(timeAStr).getTime() : 0;
+            const dateB =
+              timeBStr && timeBStr !== "N/A" ? new Date(timeBStr).getTime() : 0;
+
+            return sortLatestToOldest ? dateB - dateA : dateA - dateB;
+          });
+
+          sortedLogs.forEach((logCardNode) => {
+            logGridContainer.appendChild(logCardNode);
+          });
+        }
+
+        updateEmptyPlaceholderState(visibleCount);
+      }
+
+      function applyIdCatalogFilter() {
+        const searchBox = document.getElementById("search-box");
+        const query = searchBox ? searchBox.value.toLowerCase() : "";
+        const cards = document.querySelectorAll(".id-info-card");
+
+        cards.forEach((card) => {
+          const id = card.getAttribute("data-id") || "";
+          const title = card.getAttribute("data-title") || "";
+          const desc = card.getAttribute("data-desc") || "";
+          const type = card.getAttribute("data-type") || "";
+
+          const match =
+            id.includes(query) ||
+            title.includes(query) ||
+            desc.includes(query) ||
+            type.includes(query);
+
+          card.style.setProperty(
+            "display",
+            match ? "flex" : "none",
+            "important",
+          );
+        });
+      }
+
+      function switchCategory(channelKey) {
+        selectedActiveChannel = channelKey;
+
+        const loader = document.getElementById("loading-overlay");
+        if (loader) loader.classList.remove("opacity-0", "pointer-events-none");
+
+        const searchBox = document.getElementById("search-box");
+        if (searchBox) {
+          searchBox.value = "";
+          searchBox.placeholder =
+            channelKey === "id-information"
+              ? "Search IDs, logs, or descriptors..."
+              : "Search logs...";
+        }
+
+        if (channelKey !== "id-information" && channelKey !== "all") {
+          clearFeeds();
+        }
+
+        setTimeout(async () => {
+          updateSidebarUiSelection(channelKey);
+          toggleLayoutPanels(channelKey);
+
+          await executeRefreshCycle(channelKey);
+
+          if (channelKey === "id-information") {
+            applyIdCatalogFilter();
+          } else {
+            applyActiveFilterDisplay();
+          }
+
+          if (loader) loader.classList.add("opacity-0", "pointer-events-none");
+        }, 250);
+      }
+
+      function updateSidebarUiSelection(channelKey) {
+        const buttons = document.querySelectorAll("#channel-menu button");
+        buttons.forEach((btn) => {
+          const isTarget = btn.id === `btn-chan-${channelKey}`;
+
+          if (channelKey === "id-information") {
+            btn.className = isTarget
+              ? "w-full h-9 flex items-center justify-between px-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 transition-all duration-150 text-xs font-semibold text-left whitespace-nowrap"
+              : "w-full h-9 flex items-center justify-between px-3 rounded-xl hover:bg-white/[0.03] border border-transparent hover:border-white/5 text-white/50 hover:text-white/90 transition-all duration-150 text-xs font-medium text-left whitespace-nowrap";
+            return;
+          }
+
+          btn.className = isTarget
+            ? "w-full h-9 flex items-center justify-between px-3 rounded-xl bg-white/5 border border-white/10 text-white transition-all duration-150 text-xs font-semibold text-left whitespace-nowrap"
+            : btn.id === "btn-chan-id-information"
+              ? "w-full h-9 flex items-center justify-between px-3 rounded-xl hover:bg-amber-500/5 border border-transparent hover:border-amber-500/10 text-amber-400/70 hover:text-amber-300 transition-all duration-150 text-xs font-medium text-left whitespace-nowrap"
+              : "w-full h-9 flex items-center justify-between px-3 rounded-xl hover:bg-white/[0.03] border border-transparent hover:border-white/5 text-white/50 hover:text-white/90 transition-all duration-150 text-xs font-medium text-left whitespace-nowrap";
+        });
+      }
+
+      function toggleLayoutPanels(channelKey) {
+        const logGrid = document.getElementById("log-grid-stream");
+        const infoGrid = document.getElementById("id-info-grid-view");
+        const streamActions = document.getElementById("stream-actions-group");
+        const infoActions = document.getElementById("id-info-actions-group");
+        const timeFilters = document.getElementById("log-time-filters");
+
+        if (channelKey === "id-information") {
+          if (logGrid) logGrid.classList.add("hidden");
+          if (streamActions) streamActions.classList.add("hidden");
+          if (timeFilters) timeFilters.classList.add("hidden");
+          if (infoGrid) infoGrid.classList.remove("hidden");
+          if (infoActions) {
+            infoActions.classList.remove("hidden");
+            infoActions.classList.add("flex");
+          }
+          return;
+        }
+
+        if (infoGrid) infoGrid.classList.add("hidden");
+        if (infoActions) {
+          infoActions.classList.add("hidden");
+          infoActions.classList.remove("flex");
+        }
+        if (logGrid) logGrid.classList.remove("hidden");
+        if (streamActions) streamActions.classList.remove("hidden");
+        if (timeFilters) timeFilters.classList.remove("hidden");
+      }
+
+      function updateEmptyPlaceholderState(visibleCount) {
+        const currentPlaceholder = document.getElementById("empty-state-msg");
+        if (visibleCount > 0) {
+          if (currentPlaceholder) currentPlaceholder.remove();
+          return;
+        }
+        if (currentPlaceholder) return;
+
+        const fallbackMarkup = `
+    <div id="empty-state-msg" class="h-64 w-full flex flex-col items-center justify-center text-white/20 space-y-2 select-none">
+      <i class="fa-solid fa-folder-open text-xl"></i>
+      <p class="text-xs font-medium tracking-wide">No logs found...</p>
+    </div>`;
+        const logGrid = document.getElementById("log-grid-stream");
+        if (logGrid) logGrid.insertAdjacentHTML("beforeend", fallbackMarkup);
+      }
+
+      function clearFeeds() {
+        activeLiveDataset = [];
+        const logGrid = document.getElementById("log-grid-stream");
+        if (logGrid) logGrid.innerHTML = "";
+        const allCount = document.getElementById("all-count");
+        if (allCount) allCount.innerText = "0";
+        updateEmptyPlaceholderState(0);
+      }
+
+      function copyTextPath(element, pathText) {
+        navigator.clipboard.writeText(pathText).then(() => {
+          const innerSpan = element.querySelector("span");
+          const innerIcon = element.querySelector("i");
+          if (!innerSpan || !innerIcon) return;
+          const originalText = innerSpan.innerText;
+
+          innerSpan.innerText = "Copied path!";
+          innerSpan.className =
+            "shortcut truncate text-emerald-400 font-medium";
+          innerIcon.className =
+            "fa-solid fa-check text-emerald-400 text-[10px] ml-2";
+
+          setTimeout(() => {
+            innerSpan.innerText = originalText;
+            innerSpan.className =
+              "truncate text-white/40 group-hover/path:text-white/70 transition-colors duration-150";
+            innerIcon.className =
+              "fa-regular fa-copy text-white/20 group-hover/path:text-white/50 text-[10px] ml-2";
+          }, 1200);
+        });
+      }
+
+      window.addEventListener("ui-update", (event) => {
+        const data = event.detail;
+        if (!data || !data.id) return;
+
+        const isDuplicate = activeLiveDataset.some(
+          (item) =>
+            item.id === data.id &&
+            item.time === data.time &&
+            item.type === data.type,
+        );
+        if (isDuplicate) return;
+
+        activeLiveDataset.unshift(data);
+
+        const feedContainer = document.getElementById("log-grid-stream");
+        if (!feedContainer) return;
+
+        const freshCardHTML = createLogCardMarkup(
+          data.id,
+          data.msg,
+          data.exactPath,
+          data.type,
+          data.time,
+        );
+
+        feedContainer.insertAdjacentHTML("afterbegin", freshCardHTML);
+
+        const allCount = document.getElementById("all-count");
+        if (allCount) allCount.innerText = activeLiveDataset.length;
+
+        applyActiveFilterDisplay();
+      });
+
+      window.addEventListener("id-info-update", (event) => {
+        if (!Array.isArray(event.detail)) return;
+        initialIdDatabase = event.detail;
+        renderIdInformationView(initialIdDatabase);
+      });
+
+      document.addEventListener("DOMContentLoaded", () => {
+        const searchBoxElement = document.getElementById("search-box");
+        if (searchBoxElement) {
+          searchBoxElement.addEventListener("input", handleSearchInput);
+        }
+        initializeMenuComponents();
+      });
+    </script>
+
+    <script src="app.js"></script>
+
+    <!-- ========================================================= -->
+  </body>
+</html>
